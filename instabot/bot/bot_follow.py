@@ -23,6 +23,26 @@ def follow(self, user_id):
         self.logger.info("Out of follows for today.")
     return False
 
+def follow_id(self, user_id):
+    # user_id = self.convert_to_user_id(user_id)
+    msg = ' ===> Going to follow `user_id`: {}.'.format(user_id)
+    self.console_print(msg)
+    if not self.check_user(user_id):
+        return False
+    if not self.reached_limit('follows'):
+        self.delay('follow')
+        if self.api.follow(user_id):
+            msg = '===> FOLLOWED <==== `user_id`: {}.'.format(user_id)
+            self.console_print(msg, 'green')
+            self.total['follows'] += 1
+            self.followed_file.append(user_id)
+            if user_id not in self._following:
+                self._following.append(user_id)
+            return True
+    else:
+        self.logger.info("Out of follows for today.")
+    return False
+
 
 def follow_users(self, user_ids):
     broken_items = []

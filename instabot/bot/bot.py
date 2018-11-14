@@ -17,7 +17,8 @@ from .bot_direct import (send_hashtag, send_like, send_media, send_medias,
                          send_message, send_messages, send_profile)
 from .bot_filter import check_media, check_not_bot, check_user, filter_medias
 from .bot_follow import (follow, follow_followers, follow_following,
-                         follow_users)
+                         follow_users, 
+                         follow_id) #New
 from .bot_get import (convert_to_user_id, get_archived_medias, get_comment,
                       get_comment_likers, get_geotag_medias, get_geotag_users,
                       get_hashtag_medias, get_hashtag_users,
@@ -29,8 +30,11 @@ from .bot_get import (convert_to_user_id, get_archived_medias, get_comment,
                       get_timeline_medias, get_timeline_users,
                       get_total_hashtag_medias, get_total_user_medias,
                       get_user_followers, get_user_following,
+                      get_user_id_followers, get_user_id_following, #New
                       get_user_id_from_username, get_user_info,
+                      get_user_id_info, #New
                       get_user_likers, get_user_medias, get_user_tags_medias,
+                      get_user_id_medias, #New
                       get_username_from_user_id, get_your_medias, search_users)
 from .bot_like import (like, like_comment, like_followers, like_following,
                        like_geotag, like_hashtag, like_media_comments,
@@ -40,7 +44,8 @@ from .bot_stats import save_user_stats
 from .bot_support import (check_if_file_exists, console_print, extract_urls,
                           read_list_from_file)
 from .bot_unfollow import (unfollow, unfollow_everyone, unfollow_non_followers,
-                           unfollow_users)
+                           unfollow_users, 
+                           unfollow_id) #New
 from .bot_unlike import (unlike, unlike_comment, unlike_media_comments,
                          unlike_medias, unlike_user)
 from .bot_video import upload_video
@@ -314,6 +319,9 @@ class Bot(object):
     def get_user_medias(self, user_id, filtration=True, is_comment=False):
         return get_user_medias(self, user_id, filtration, is_comment)
 
+    def get_user_id_medias(self, user_id, filtration=True, is_comment=False):
+        return get_user_id_medias(self, user_id, filtration, is_comment)
+
     def get_total_user_medias(self, user_id):
         return get_total_user_medias(self, user_id)
 
@@ -362,11 +370,20 @@ class Bot(object):
     def get_user_info(self, user_id, use_cache=True):
         return get_user_info(self, user_id, use_cache)
 
+    def get_user_id_info(self, user_id, use_cache=True):
+        return get_user_id_info(self, user_id, use_cache)
+
     def get_user_followers(self, user_id, nfollows=None):
         return get_user_followers(self, user_id, nfollows)
 
+    def get_user_id_followers(self, user_id, nfollows=None):
+        return get_user_id_followers(self, user_id, nfollows)
+
     def get_user_following(self, user_id, nfollows=None):
         return get_user_following(self, user_id, nfollows)
+
+    def get_user_id_following(self, user_id, nfollows=None):
+        return get_user_id_following(self, user_id, nfollows)
 
     def get_comment_likers(self, comment_id):
         return get_comment_likers(self, comment_id)
@@ -480,6 +497,9 @@ class Bot(object):
     def follow(self, user_id):
         return follow(self, user_id)
 
+    def follow_id(self, user_id):
+        return follow_id(self, user_id)
+
     def follow_users(self, user_ids):
         return follow_users(self, user_ids)
 
@@ -493,6 +513,9 @@ class Bot(object):
 
     def unfollow(self, user_id):
         return unfollow(self, user_id)
+
+    def unfollow_id(self, user_id):
+        return unfollow_id(self, user_id)
 
     def unfollow_users(self, user_ids):
         return unfollow_users(self, user_ids)
