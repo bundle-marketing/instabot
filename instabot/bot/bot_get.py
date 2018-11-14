@@ -54,14 +54,6 @@ def get_user_medias(self, user_id, filtration=True, is_comment=False):
         return []
     return self.filter_medias(self.api.last_json["items"], filtration, is_comment=is_comment)
 
-def get_user_id_medias(self, user_id, filtration=True, is_comment=False):
-    # user_id = self.convert_to_user_id(user_id)
-    self.api.get_user_feed(user_id)
-    if self.api.last_json["status"] == 'fail':
-        self.logger.warning("This is a closed account.")
-        return []
-    return self.filter_medias(self.api.last_json["items"], filtration, is_comment=is_comment)
-
 
 def get_total_user_medias(self, user_id):
     user_id = self.convert_to_user_id(user_id)
@@ -185,36 +177,15 @@ def get_user_info(self, user_id, use_cache=True):
         self._user_infos[user_id] = user_info
     return self._user_infos[user_id]
 
-def get_user_id_info(self, user_id, use_cache=True):
-    # user_id = self.convert_to_user_id(user_id)
-    if not use_cache or user_id not in self._user_infos:
-        self.api.get_username_info(user_id)
-        last_json = self.api.last_json
-        if last_json is None or 'user' not in last_json:
-            return False
-        user_info = last_json['user']
-        self._user_infos[user_id] = user_info
-    return self._user_infos[user_id]
-
 
 def get_user_followers(self, user_id, nfollows):
     user_id = self.convert_to_user_id(user_id)
     followers = self.api.get_total_followers(user_id, nfollows)
     return [str(item['pk']) for item in followers][::-1] if followers else []
 
-def get_user_id_followers(self, user_id, nfollows):
-    # user_id = self.convert_to_user_id(user_id)
-    followers = self.api.get_total_followers(user_id, nfollows)
-    return [str(item['pk']) for item in followers][::-1] if followers else []
-
 
 def get_user_following(self, user_id, nfollows=None):
     user_id = self.convert_to_user_id(user_id)
-    following = self.api.get_total_followings(user_id, nfollows)
-    return [str(item['pk']) for item in following][::-1] if following else []
-
-def get_user_id_following(self, user_id, nfollows=None):
-    # user_id = self.convert_to_user_id(user_id)
     following = self.api.get_total_followings(user_id, nfollows)
     return [str(item['pk']) for item in following][::-1] if following else []
 
