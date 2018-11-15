@@ -9,6 +9,8 @@ import datetime
 from tqdm import tqdm
 from pymongo import MongoClient
 
+from bson.objectid import ObjectId
+
 from config import (MONGO_DB_URL, MONGO_DB_NAME, TABLES)
 
 sys.path.append(os.path.join(sys.path[0], '../'))
@@ -26,13 +28,17 @@ db = client[MONGO_DB_NAME]
 
 #### Setting up Bot #####
 
-bot = Bot()
-bot.login(username=os.environ['USERNAME'], 
-	password=os.environ['PASSWORD'],
-	proxy=os.environ['PROXY'],
-	filter_private_users=False,
+bot = Bot(filter_private_users=False,
 	stop_words=(),
 	blacklist_hashtags=[])
+
+cred_username = os.environ['USERNAME']
+cred_passwd = os.environ['PASSWORD']
+cred_proxy = os.environ['PROXY']
+
+bot.login(username=cred_username, 
+	password=cred_passwd,
+	proxy=cred_proxy)
 
 
 
@@ -52,7 +58,7 @@ def get_user_target_media(user_id, media_history=USER_MEDIA_HISTORY):
 	if len(medias):
 		for i in range(min(media_history,len(medias))):
 
-			media_info = bot.get_media_info(data["media_id"])[0]
+			media_info = bot.get_media_info(medias[i])[0]
 
 			data = {}
 			data["media_id"] = medias[i]
@@ -72,7 +78,7 @@ def get_user_target_media(user_id, media_history=USER_MEDIA_HISTORY):
 	return to_return
 
 
-def get_user_metadata(config):#, melrose_coll):
+def get_user_metadata(config):
 
 	data = {}	
 	data["info_at_utc"] = calendar.timegm(time.gmtime())
@@ -105,7 +111,7 @@ def get_job_record(job_id):
 
 	key = {"_id" : job_id}
 
-	records = list(pot_infl_coll.find(key))
+	records = list(job_config_coll.find(key))
 
 	if len(records) != 1 :
 		return None
@@ -126,11 +132,11 @@ def add_user_record(data):
 
 
 def main():
-	job_record = get_job_record(os.environ['JOB_ID'])
+	job_id = ObjectId(os.environ['JOB_ID'])
+	job_record = get_job_record(job_id)
 
 	if job_record == None:
 		return
-
 
 	if job_record["type"] == "get_data":
 
@@ -151,19 +157,6 @@ def main():
 
 
 	# time.sleep(60)
-
-
-
-	
-
-
-
-
-
-
-
-
-
 
 
 if __name__ == '__main__':

@@ -10,3 +10,4 @@ responses
 future
 six
 huepy
+pymongo
