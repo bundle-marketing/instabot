@@ -115,3 +115,9 @@ nohup.out
 # Settings files
 *.txt
 *.checkpoint
+
+
+
+# Extra added
+bot/config.py
+bot/run_commands_no_commit
