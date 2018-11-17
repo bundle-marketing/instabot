@@ -222,7 +222,7 @@ def main():
 		if config_record != None:
 
 			if "target_ig_username" in config_record:
-				target_username = config_record["ig_username"]
+				target_username = config_record["target_ig_username"]
 
 			if "media" in config_record:
 				media_config = config_record["media"]
