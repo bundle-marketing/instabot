@@ -149,7 +149,7 @@ def update_job_record(data):
 	job_config_coll = db[TABLES["JOB_CONFIG"]]
 
 	key = {"_id" : data["_id"]}
-	job_config_coll.update(key, data)
+	job_config_coll.replace_one(key, data)
 
 
 def add_user_record(data):
@@ -186,7 +186,7 @@ def update_people_to_follow(data):
 
 	key = { "_id" : data["_id"]}
 
-	user_follow_coll.update(key, data)
+	user_follow_coll.replace_one(key, data)
 
 
 def get_people_to_unfollow(count=50):

@@ -23,7 +23,7 @@ def add_user_metadata(user_id, bot, pot_infl_coll):
 
 	try:
 
-		if pot_infl_coll.find({"user_id": user_id}).count() > 0:
+		if pot_infl_coll.count_documents({"user_id": user_id}) > 0:
 			# Record already present
 			return
 
