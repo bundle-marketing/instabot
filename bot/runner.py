@@ -5,6 +5,7 @@ import time
 import json
 import calendar
 import datetime
+import random
 
 from tqdm import tqdm
 from pymongo import MongoClient
@@ -23,22 +24,11 @@ from instabot import Bot, utils
 client = MongoClient(MONGO_DB_URL)
 db = client[MONGO_DB_NAME]
 
-
-
-
 #### Setting up Bot #####
 
 bot = Bot(filter_private_users=False,
 	stop_words=(),
 	blacklist_hashtags=[])
-
-cred_username = os.environ['USERNAME']
-cred_passwd = os.environ['PASSWORD']
-cred_proxy = os.environ['PROXY']
-
-bot.login(username=cred_username, 
-	password=cred_passwd,
-	proxy=cred_proxy)
 
 
 
@@ -46,6 +36,9 @@ bot.login(username=cred_username,
 
 USER_MEDIA_HISTORY = 10
 USER_MAX_FOLLOWERS = 100000
+
+UNFOLLOW_DELAY = 3 * 24 * 60 * 60
+MAX_AMT_MEDIA_FOLLOW = 3
 
 
 def get_current_time():
@@ -177,18 +170,96 @@ def get_config(id, table_name):
 
 	return records[0]
 
+def get_people_to_follow(count=50):
+
+	user_follow_coll = db[TABLES["USER_FOLLOW"]]
+
+	key = { "status" : -1 }
+	sort_key = [ ("weight" , -1) ]
+
+	return list(user_follow_coll.find(key).sort(sort_key).limit(count))
+
+
+def update_people_to_follow(data):
+
+	user_follow_coll = db[TABLES["USER_FOLLOW"]]
+
+	key = { "_id" : data["_id"]}
+
+	user_follow_coll.update(key, data)
+
+
+def get_people_to_unfollow(count=50):
+
+	user_follow_coll = db[TABLES["USER_FOLLOW"]]
+
+	key = { "status" : 0, "unfollowed_time" : {"$lt": get_current_time()} }
+	sort_key = [ ("weight" , -1) ]
+
+	return list(user_follow_coll.find(key).sort(sort_key).limit(count))
+
+
+def add_job_comment(job_record, comment):
+
+	if "runtime_comment" in job_record:
+
+		job_record["runtime_comment"].append('\n' + comment)
+
+	else:
+
+		job_record["runtime_comment"] = comment
+
+	update_job_record(job_record)
 
 def main():
+
+	# Getting job details
+	
 	job_id = ObjectId(os.environ['JOB_ID'])
 	job_record = get_job_record(job_id)
 
 	if job_record == None:
 		return
 
+	# Bot login
+
+	try:
+
+		cred_username = os.environ['USERNAME']
+		cred_passwd = os.environ['PASSWORD']
+
+	except:
+
+		add_job_comment(job_record, "ABORT: Username/Password not provided")
+		return
+
+
+	cred_proxy = None
+
+	try:
+		cred_proxy = os.environ['PROXY']
+
+	except:
+
+		add_job_comment(job_record, "CAUTION: Proxy not provided.")
+
+	login_success = bot.login(username=cred_username, password=cred_passwd, proxy=cred_proxy)
+
+	if login_success == False:
+
+		job_record["login_issue"] = True
+		job_record["login_username"] = cred_username
+		job_record["login_issue_solved"] = False
+
+		add_job_comment(job_record, "ABORT: Unable to login.")
+
+		return
+
 	job_record["ran_once"] = True
 	update_job_record(job_record)
 
 	job_record["success"] = False
+	job_record["start_time"] = get_current_time()
 
 	target_username = None
 	target_user_id = None
@@ -234,12 +305,72 @@ def main():
 				add_user_record(data)
 				job_record["success"] = True
 
+	elif job_record["type"] == "follow":
+
+		print("Running job of type follow")
+		for user_record in get_people_to_follow(count=10):
+
+			ret_code = bot.follow(user_id=user_record["target_user_id"])
+
+			if ret_code == False:
+
+				print("This user was skipped")
+
+				user_record["status"] = 1
+				user_record["skipped"] = 1
+
+				update_people_to_follow(user_record)
+
+			else:
+
+				print("This user was followed")
+
+				bot.like_user(user_id=user_record["target_user_id"], amount= random.randint(1, MAX_AMT_MEDIA_FOLLOW), filtration=False)
+
+
+				user_record["status"] = 0
+				user_record["followed_time"] = get_current_time()
+				user_record["unfollowed_time"] = user_record["followed_time"] + UNFOLLOW_DELAY
+
+				update_people_to_follow(user_record)
+
+				job_record["success"] = True
+
+				break
+
+	elif job_record["type"] == "unfollow":
+		print("Running job of type follow")
+
+		for user_record in get_people_to_unfollow(count=10):
+
+			ret_code = bot.unfollow(user_id=user_record["target_user_id"])
+
+			user_record["status"] = 1
+			update_people_to_follow(user_record)
+
+			if ret_code == True:
+
+				print("This user was unfollowed")
+
+
+				job_record["success"] = True
+				break
+
+	else:
+
+		## TODO: Better solution?
+		job_record["ran_once"] = False
+
+
+	# TODO
+
+	# elif job_record["type"] == "like_hashtag":
+	# 	pass
+
+
 
 	job_record["completion_time"] = get_current_time()
 	update_job_record(job_record)
-
-
-	# time.sleep(60)
 
 
 if __name__ == '__main__':
