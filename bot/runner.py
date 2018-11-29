@@ -203,7 +203,7 @@ def add_job_comment(job_record, comment):
 
 	if "runtime_comment" in job_record:
 
-		job_record["runtime_comment"].append('\n' + comment)
+		job_record["runtime_comment"] += ('\n' + comment)
 
 	else:
 
@@ -242,6 +242,7 @@ def main():
 	except:
 
 		add_job_comment(job_record, "CAUTION: Proxy not provided.")
+
 
 	login_success = bot.login(username=cred_username, password=cred_passwd, proxy=cred_proxy)
 
@@ -375,6 +376,3 @@ def main():
 
 if __name__ == '__main__':
 	main()
-
-
-
