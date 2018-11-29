@@ -67,10 +67,12 @@ def get_user_target_media(user_id, media_config):
 			data["timestamp"] = get_current_time()
 			data["taken_at"] = media_info["taken_at"]
 
-			data["caption"] = {}
+			if "caption" in media_info and "created_at_utc" in media_info["caption"] and "text" in media_info["caption"]:
 
-			data["caption"]["created_at"] = media_info["caption"]["created_at_utc"]
-			data["caption"]["text"] = media_info["caption"]["text"]
+				data["caption"] = {}
+
+				data["caption"]["created_at"] = media_info["caption"]["created_at_utc"]
+				data["caption"]["text"] = media_info["caption"]["text"]
 
 			if "likers" in media_config and media_config["likers"] == True:
 				data["likers"] = bot.get_media_likers(medias[i])
