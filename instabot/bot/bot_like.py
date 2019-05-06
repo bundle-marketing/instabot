@@ -62,7 +62,7 @@ def like_timeline(self, amount=None):
     return self.like_medias(medias)
 
 
-def like_user(self, user_id, amount=None, filtration=True):
+def like_user(self, user_id, amount=None, filtration=False):
     """ Likes last user_id's medias """
     if filtration:
         if not self.check_user(user_id):

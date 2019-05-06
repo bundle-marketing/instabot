@@ -26,9 +26,9 @@ db = client[MONGO_DB_NAME]
 
 #### Setting up Bot #####
 
-bot = Bot(filter_private_users=False,
-	stop_words=(),
+bot = Bot(stop_words=(),
 	blacklist_hashtags=[])
+	# ,filter_private_users=False)
 
 
 
@@ -39,6 +39,8 @@ USER_MAX_FOLLOWERS = 100000
 
 UNFOLLOW_DELAY = 3 * 24 * 60 * 60
 MAX_AMT_MEDIA_FOLLOW = 3
+
+SLEEP_AFTER_EACH_JOB = 60
 
 
 def get_current_time():
@@ -62,43 +64,52 @@ def get_user_target_media(user_id, media_config):
 
 			media_info = bot.get_media_info(medias[i])[0]
 
-			data = {}
-			data["media_id"] = medias[i]
-			data["timestamp"] = get_current_time()
-			data["taken_at"] = media_info["taken_at"]
+			if media_info == None:
+				continue
 
-			if "caption" in media_info and "created_at_utc" in media_info["caption"] and "text" in media_info["caption"]:
+			try:
 
-				data["caption"] = {}
+				data = {}
+				data["media_id"] = medias[i]
+				data["timestamp"] = get_current_time()
+				data["taken_at"] = media_info["taken_at"]
 
-				data["caption"]["created_at"] = media_info["caption"]["created_at_utc"]
-				data["caption"]["text"] = media_info["caption"]["text"]
+				if "caption" in media_info and "created_at_utc" in media_info["caption"] and "text" in media_info["caption"]:
 
-			if "likers" in media_config and media_config["likers"] == True:
-				data["likers"] = bot.get_media_likers(medias[i])
-				data["like_count"] = len(data["likers"])
+					data["caption"] = {}
 
-			if "comment" in media_config and media_config["comment"] == True:
+					data["caption"]["created_at"] = media_info["caption"]["created_at_utc"]
+					data["caption"]["text"] = media_info["caption"]["text"]
 
-				comments = bot.get_media_comments_all(data["media_id"], only_text=False, count=False)
+				if "likers" in media_config and media_config["likers"] == True:
+					data["likers"] = bot.get_media_likers(medias[i])
+					data["like_count"] = len(data["likers"])
 
-				data["comments"] = []
+				if "comment" in media_config and media_config["comment"] == True:
 
-				for comm in comments:
-					comment_data = {}
+					comments = bot.get_media_comments_all(data["media_id"], only_text=False, count=False)
 
-					comment_data["id"] = comm["pk"]
-					comment_data["created_at"] = comm["created_at_utc"]
+					data["comments"] = []
 
-					comment_data["text"] = comm["text"]
-					comment_data["user_id"] = comm["user_id"]
+					for comm in comments:
+						comment_data = {}
 
-					data["comments"].append(comment_data)
+						comment_data["id"] = comm["pk"]
+						comment_data["created_at"] = comm["created_at_utc"]
 
-				data["comment_count"] = len(data["comments"])
+						comment_data["text"] = comm["text"]
+						comment_data["user_id"] = comm["user_id"]
+
+						data["comments"].append(comment_data)
+
+					data["comment_count"] = len(data["comments"])
 
 
-			to_return.append(data)
+				to_return.append(data)
+
+			except:
+
+				pass
 
 	return to_return
 
@@ -134,18 +145,34 @@ def get_user_metadata(target_username=None, target_user_id=None, media_config=No
 	return data
 
 
-def get_job_record(job_id):
+def check_pending_job(ig_username, max_jobs=1):
+
 	job_config_coll = db[TABLES["JOB_CONFIG"]]
 
+	key = {"specific_username": ig_username, "completion_time" : -1}
+	sort_key = [ ("weight", -1), ("release_time", 1) ]
+	
+	jobs_found = list(job_config_coll.find(key).sort(sort_key).limit(max_jobs))
 
-	key = {"_id" : job_id}
-
-	records = list(job_config_coll.find(key))
-
-	if len(records) != 1 :
+	if len(jobs_found) == 0:
 		return None
+	else:
+		return jobs_found[0]
 
-	return records[0]
+
+
+# def get_job_record(job_id):
+# 	job_config_coll = db[TABLES["JOB_CONFIG"]]
+
+
+# 	key = {"_id" : job_id}
+
+# 	records = list(job_config_coll.find(key))
+
+# 	if len(records) != 1 :
+# 		return None
+
+# 	return records[0]
 
 def update_job_record(data):
 	job_config_coll = db[TABLES["JOB_CONFIG"]]
@@ -213,50 +240,11 @@ def add_job_comment(job_record, comment):
 
 	update_job_record(job_record)
 
-def main():
 
-	# Getting job details
-	
-	job_id = ObjectId(os.environ['JOB_ID'])
-	job_record = get_job_record(job_id)
+def run_job(job_record):
 
 	if job_record == None:
-		return
-
-	# Bot login
-
-	try:
-
-		cred_username = os.environ['USERNAME']
-		cred_passwd = os.environ['PASSWORD']
-
-	except:
-
-		add_job_comment(job_record, "ABORT: Username/Password not provided")
-		return
-
-
-	cred_proxy = None
-
-	try:
-		cred_proxy = os.environ['PROXY']
-
-	except:
-
-		add_job_comment(job_record, "CAUTION: Proxy not provided.")
-
-
-	login_success = bot.login(username=cred_username, password=cred_passwd, proxy=cred_proxy)
-
-	if login_success == False:
-
-		job_record["login_issue"] = True
-		job_record["login_username"] = cred_username
-		job_record["login_issue_solved"] = False
-
-		add_job_comment(job_record, "ABORT: Unable to login.")
-
-		return
+		return False
 
 	job_record["ran_once"] = True
 	update_job_record(job_record)
@@ -283,6 +271,7 @@ def main():
 			if "media" in config_record:
 				media_config = config_record["media"]
 			
+			print("Running job of get_data on username: ", target_username)
 			data = get_user_metadata(target_username=target_username, target_user_id=target_user_id, media_config=media_config)
 
 			if data != None:
@@ -301,7 +290,7 @@ def main():
 			if "media" in config_record:
 				media_config = config_record["media"]
 
-			
+			print("Running job of update_follow on username: ", target_username)
 			data = get_user_metadata(target_username=target_username, target_user_id=target_user_id, media_config=media_config)
 
 			if data != None:
@@ -328,7 +317,12 @@ def main():
 
 				print("This user was followed")
 
-				bot.like_user(user_id=user_record["target_user_id"], amount= random.randint(1, MAX_AMT_MEDIA_FOLLOW), filtration=False)
+				try:
+
+					bot.like_user(user_id=user_record["target_user_id"], amount= random.randint(1, MAX_AMT_MEDIA_FOLLOW), filtration=False)
+
+				except:
+					pass
 
 
 				user_record["status"] = 0
@@ -346,18 +340,22 @@ def main():
 
 		for user_record in get_people_to_unfollow(count=10):
 
-			ret_code = bot.unfollow(user_id=user_record["target_user_id"])
+			try:
 
-			user_record["status"] = 1
-			update_people_to_follow(user_record)
+				ret_code = bot.unfollow(user_id=user_record["target_user_id"])
 
-			if ret_code == True:
+				user_record["status"] = 1
+				update_people_to_follow(user_record)
 
-				print("This user was unfollowed")
+				if ret_code == True:
+
+					print("This user was unfollowed")
 
 
-				job_record["success"] = True
-				break
+					job_record["success"] = True
+					break
+			except:
+				pass
 
 	else:
 
@@ -374,6 +372,82 @@ def main():
 
 	job_record["completion_time"] = get_current_time()
 	update_job_record(job_record)
+
+	return job_record["success"]
+
+
+# def get_bot_credentials(username):
+
+# 	insta_cred_coll = db[TABLES["IG_CRED"]]
+# 	key = {"ig_username": username}
+
+# 	records_ =  list(insta_cred_coll.find(key))
+
+# 	if len(records_) == 0:
+# 		return None
+# 	else:
+# 		return records_
+
+
+
+def login_bot():
+
+	cred_username = None
+	cred_passwd = None
+	cred_proxy = None
+
+	try:
+		cred_username = os.environ['USERNAME']
+		cred_passwd = os.environ['PASSWORD']
+		cred_proxy = os.environ['PROXY']
+
+	except:
+
+		print("ABORT: Username/Password or Proxy not provided. If not prxy to be used, pass in empty string")
+		# add_job_comment(job_record, )
+		return False
+
+	if len(cred_proxy) == 0:
+		cred_proxy = None
+		
+		print("CAUTION: Proxy not provided.")
+		# add_job_comment(job_record, "CAUTION: Proxy not provided.")
+
+
+	is_logged_in = bot.login(username=cred_username, password=cred_passwd, proxy=cred_proxy)
+
+	if is_logged_in == True:
+		return cred_username
+
+	return None
+
+
+
+
+
+def main():
+
+	cred_username = login_bot()
+
+	if cred_username == None:
+
+		print("ABORT: Unable to login.")
+
+		# job_record["login_issue"] = True
+		# job_record["login_username"] = cred_username
+		# job_record["login_issue_solved"] = False
+
+		# add_job_comment(job_record, "ABORT: Unable to login.")
+		return
+
+	# Getting job details
+
+	while True:
+
+		job_record = check_pending_job(ig_username=cred_username, max_jobs=1)
+		run_job(job_record)
+
+		time.sleep(SLEEP_AFTER_EACH_JOB)
 
 
 if __name__ == '__main__':

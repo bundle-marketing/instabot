@@ -3,7 +3,7 @@
 """
 
 
-def filter_medias(self, media_items, filtration=True, quiet=False, is_comment=False):
+def filter_medias(self, media_items, filtration=False, quiet=False, is_comment=False):
     if filtration:
         if not quiet:
             self.logger.info("Received {} medias.".format(len(media_items)))
